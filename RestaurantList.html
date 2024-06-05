@@ -1,42 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Find Nearby Restaurants</title>
     <style>
+        /* Existing CSS */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
         }
+
         header {
             background-color: #333;
             color: white;
             padding: 1rem;
             text-align: center;
         }
+
         .container {
             display: flex;
             flex-wrap: wrap;
             justify-content: space-between;
             padding: 1rem;
         }
+
         .search-bar {
             width: 100%;
             margin-bottom: 1rem;
         }
+
         .search-bar input {
             width: 100%;
             padding: 0.5rem;
             font-size: 1rem;
         }
-        .map {
+
+        #map {
             width: 100%;
             height: 400px;
             margin-bottom: 1rem;
             background-color: #ccc;
         }
+
         .restaurant-card {
             background-color: #f9f9f9;
             border: 1px solid #ddd;
@@ -44,112 +52,245 @@
             padding: 1rem;
             margin-bottom: 1rem;
             width: 48%;
+            cursor: pointer;
         }
+
         .restaurant-card img {
             width: 100%;
             height: 200px;
             object-fit: cover;
             border-radius: 5px;
         }
+
         .restaurant-info {
             padding: 0.5rem 0;
         }
+
         .restaurant-info h3 {
             margin: 0;
         }
+
         @media (max-width: 768px) {
             .restaurant-card {
                 width: 100%;
             }
         }
+
+        #loading {
+            text-align: center;
+            font-size: 1.5rem;
+            margin: 2rem 0;
+        }
     </style>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCeCgjnrPisxiVgthGRYgvbfZdqO7ZUMcg&libraries=places&callback=initMap" async defer></script>    <script>
-        let map;
-        let service;
-      
+   <script
+   src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAzYlo7cul2YLTHD3hc0sextk-mixpOElU&libraries=places,directions&callback=initMap"
+   async defer></script>
+<script>
+   let map;
+   let service;
+   let infowindow;
+   let directionsService;
+   let directionsRenderer;
+   const processedRestaurants = new Set();
+   let currentPosition;
 
-       async function initMap() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((position) => {
-                    const pos = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
+   async function initMap() {
+       const loading = document.getElementById('loading');
+       if (navigator.geolocation) {
+           navigator.geolocation.getCurrentPosition((position) => {
+               currentPosition = {
+                   lat: position.coords.latitude,
+                   lng: position.coords.longitude
+               };
 
-                    map = new google.maps.Map(document.getElementById('map'), {
-                        center: pos,
-                        zoom: 15
-                    });
+               map = new google.maps.Map(document.getElementById('map'), {
+                   center: currentPosition,
+                   zoom: 15
+               });
 
-                    const request = {
-                        location: pos,
-                        radius: '10000', // 10km radius
-                        type: ['restaurant']
-                    };
+               infowindow = new google.maps.InfoWindow();
 
-                    service = new google.maps.places.PlacesService(map);
-                    service.nearbySearch( {
-                        location: pos,
-                        radius: '10000', // 10km radius
-                        type: ['mosque']
-                            },callback);
-                        
-                    
+               directionsService = new google.maps.DirectionsService();
+               directionsRenderer = new google.maps.DirectionsRenderer();
+               directionsRenderer.setMap(map);
 
-                   
-                }, () => {
-                    handleLocationError(true, infowindow, map.getCenter());
-                });
-            }
-        }
+               // Make separate requests for each type
+               const requests = [
+                   { location: currentPosition, radius: '10000', type: ['restaurant'] },
+                   { location: currentPosition, radius: '10000', type: ['bakery'] },
+                   { location: currentPosition, radius: '10000', type: ['meal_takeaway'] }, // fast food
+                   { location: currentPosition, radius: '10000', type: ['cafe'] } // cafe
+               ];
 
-        function callback(result,status){
-            if(status==google.maps.places.PlacesServiceStatus.OK){
-                console.log(result.length)
-                for ( var i = 0;  i < result.length;  i++) {
-                   displayRestaurant(result[i]);
-                    
+               service = new google.maps.places.PlacesService(map);
+
+               requests.forEach(request => {
+                   service.nearbySearch(request, (results, status) => {
+                       callback(results, status, request.type[0]);
+                   });
+               });
+
+               loading.style.display = 'none';
+           }, () => {
+               handleLocationError(true);
+               loading.textContent = 'Error: The Geolocation service failed.';
+           });
+       } else {
+           handleLocationError(false);
+           loading.textContent = 'Error: Your browser doesn\'t support geolocation.';
+       }
+   }
+
+   function handleLocationError(browserHasGeolocation) {
+       const loading = document.getElementById('loading');
+       loading.textContent = browserHasGeolocation
+           ? 'Error: The Geolocation service failed.'
+           : 'Error: Your browser doesn\'t support geolocation.';
+   }
+
+   function callback(results, status, type) {
+       if (status === google.maps.places.PlacesServiceStatus.OK) {
+           for (let i = 0; i < results.length; i++) {
+               if (!processedRestaurants.has(results[i].place_id)) {
+                   processedRestaurants.add(results[i].place_id);
+                   service.getDetails({ placeId: results[i].place_id }, (place, status) => {
+                       if (status === google.maps.places.PlacesServiceStatus.OK) {
+                           createMarker(place, type);
+                           displayRestaurant(place, type);
+                       }
+                   });
+               }
+           }
+       }
+   }
+
+   function createMarker(place, type) {
+       if (!place.geometry || !place.geometry.location) return;
+
+       const marker = new google.maps.Marker({
+           map,
+           position: place.geometry.location,
+           icon: getMarkerIcon(type) // Use different icons for different types
+       });
+
+       google.maps.event.addListener(marker, 'click', () => {
+           const reviews = place.reviews ? place.reviews.map(review => `<p>${review.text}</p>`).join('') : 'No reviews available';
+           infowindow.setContent(`
+               <div>
+                   <strong>${place.name}</strong><br>
+                   ${place.vicinity}<br>
+                   Rating: ${place.rating}/5<br>
+                   ${reviews}
+               </div>
+           `);
+           infowindow.open(map, marker);
+           calculateAndDisplayRoute(place.geometry.location);
+       });
+   }
+
+   function getMarkerIcon(type) {
+       switch (type) {
+           case 'restaurant':
+               return 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+           case 'bakery':
+               return 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png';
+           case 'meal_takeaway':
+               return 'http://maps.google.com/mapfiles/ms/icons/green-dot.png';
+           case 'cafe':
+               return 'http://maps.google.com/mapfiles/ms/icons/purple-dot.png';
+           default:
+               return 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
+       }
+   }
+
+   function calculateAndDisplayRoute(destination) {
+    directionsService.route(
+        {
+            origin: currentPosition,
+            destination: destination,
+            travelMode: google.maps.TravelMode.DRIVING
+        },
+        (response, status) => {
+            if (status === google.maps.DirectionsStatus.OK) {
+                directionsRenderer.setDirections(response);
+            } else {
+                let errorMessage = 'Directions request failed due to ';
+                switch (status) {
+                    case google.maps.DirectionsStatus.ZERO_RESULTS:
+                        errorMessage += 'no route could be found between the origin and destination.';
+                        break;
+                    case google.maps.DirectionsStatus.NOT_FOUND:
+                        errorMessage += 'the origin or destination could not be geocoded.';
+                        break;
+                    case google.maps.DirectionsStatus.OVER_QUERY_LIMIT:
+                        errorMessage += 'the application has gone over its request quota.';
+                        break;
+                    case google.maps.DirectionsStatus.REQUEST_DENIED:
+                        errorMessage += 'the application is not allowed to use the directions service.';
+                        break;
+                    case google.maps.DirectionsStatus.INVALID_REQUEST:
+                        errorMessage += 'the provided request is invalid.';
+                        break;
+                    default:
+                        errorMessage += 'an unknown error occurred.';
+                        break;
                 }
+                window.alert(errorMessage);
             }
         }
+    );
+}
 
- 
 
-      
+   function displayRestaurant(place, type) {
+       const restaurantList = document.querySelector('.restaurantList');
 
-        function displayRestaurant(place) {
-            console.log(place)
-            const restaurantList = document.querySelector('.restaurantList');
-            const card = document.createElement('div');
-            card.classList.add('restaurant-card');
+       const card = document.createElement('div');
+       card.classList.add('restaurant-card');
 
-            const image = document.createElement('img');
-            image.src = place.photos ? place.photos[0].getUrl() : 'default -restaurant.jpg';
-            image.alt = place.name;
+       const image = document.createElement('img');
+       image.src = place.photos ? place.photos[0].getUrl() : 'default-restaurant.jpg';
+       image.alt = place.name;
 
-            const info = document.createElement('div');
-            info.classList.add('restaurant-info');
+       const info = document.createElement('div');
+       info.classList.add('restaurant-info');
 
-            const name = document.createElement('h3');
-            name.textContent = place.name;
+       const name = document.createElement('h3');
+       name.textContent = place.name;
 
-            const address = document.createElement('p');
-            address.textContent = place.vicinity;
+       const address = document.createElement('p');
+       address.textContent = place.vicinity;
 
-            const rating = document.createElement('p');
-            rating.textContent = `Rating: ${place.rating}/5`;
+       const rating = document.createElement('p');
+       rating.textContent = `Rating: ${place.rating}/5`;
 
-            info.appendChild(name);
-            info.appendChild(address);
-            info.appendChild(rating);
-            card.appendChild(image);
-            card.appendChild(info);
-            restaurantList.appendChild(card);
-        }
+       const reviews = place.reviews ? place.reviews.map(review => `<p>${review.text}</p>`).join('') : 'No reviews available';
 
-        document.addEventListener('DOMContentLoaded', initMap);
-    </script>
+       info.appendChild(name);
+       info.appendChild(address);
+       info.appendChild(rating);
+       info.innerHTML += reviews;
+       card.appendChild(image);
+       card.appendChild(info);
+       restaurantList.appendChild(card);
+
+       card.addEventListener('click', () => {
+           map.setCenter(place.geometry.location);
+           map.setZoom(15);
+           calculateAndDisplayRoute(place.geometry.location);
+       });
+   }
+
+   document.addEventListener('DOMContentLoaded', () => {
+       const loading = document.createElement('div');
+       loading.id = 'loading';
+       loading.textContent = 'Loading map and locating you...';
+       document.body.insertBefore(loading, document.body.firstChild);
+       initMap();
+   });
+</script>
 </head>
+
 <body>
     <header>
         <h1>Find Nearby Restaurants</h1>
@@ -159,9 +300,8 @@
             <input type="text" placeholder="Search for restaurants...">
         </div>
         <div id="map"></div>
-        <div class="restaurantList">
-
-        </div>
+        <div class="restaurantList"></div>
     </div>
 </body>
+
 </html>

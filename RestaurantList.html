@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Nearby Restaurants</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            padding: 1rem;
+        }
+        .search-bar {
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        .search-bar input {
+            width: 100%;
+            padding: 0.5rem;
+            font-size: 1rem;
+        }
+        .map {
+            width: 100%;
+            height: 400px;
+            margin-bottom: 1rem;
+            background-color: #ccc;
+        }
+        .restaurant-card {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            width: 48%;
+        }
+        .restaurant-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+        .restaurant-info {
+            padding: 0.5rem 0;
+        }
+        .restaurant-info h3 {
+            margin: 0;
+        }
+        @media (max-width: 768px) {
+            .restaurant-card {
+                width: 100%;
+            }
+        }
+    </style>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCeCgjnrPisxiVgthGRYgvbfZdqO7ZUMcg&libraries=places&callback=initMap" async defer></script>    <script>
+        let map;
+        let service;
+      
+
+       async function initMap() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+
+                    map = new google.maps.Map(document.getElementById('map'), {
+                        center: pos,
+                        zoom: 15
+                    });
+
+                    const request = {
+                        location: pos,
+                        radius: '10000', // 10km radius
+                        type: ['restaurant']
+                    };
+
+                    service = new google.maps.places.PlacesService(map);
+                    service.nearbySearch( {
+                        location: pos,
+                        radius: '10000', // 10km radius
+                        type: ['mosque']
+                            },callback);
+                        
+                    
+
+                   
+                }, () => {
+                    handleLocationError(true, infowindow, map.getCenter());
+                });
+            }
+        }
+
+        function callback(result,status){
+            if(status==google.maps.places.PlacesServiceStatus.OK){
+                console.log(result.length)
+                for ( var i = 0;  i < result.length;  i++) {
+                   displayRestaurant(result[i]);
+                    
+                }
+            }
+        }
+
+ 
+
+      
+
+        function displayRestaurant(place) {
+            console.log(place)
+            const restaurantList = document.querySelector('.restaurantList');
+            const card = document.createElement('div');
+            card.classList.add('restaurant-card');
+
+            const image = document.createElement('img');
+            image.src = place.photos ? place.photos[0].getUrl() : 'default -restaurant.jpg';
+            image.alt = place.name;
+
+            const info = document.createElement('div');
+            info.classList.add('restaurant-info');
+
+            const name = document.createElement('h3');
+            name.textContent = place.name;
+
+            const address = document.createElement('p');
+            address.textContent = place.vicinity;
+
+            const rating = document.createElement('p');
+            rating.textContent = `Rating: ${place.rating}/5`;
+
+            info.appendChild(name);
+            info.appendChild(address);
+            info.appendChild(rating);
+            card.appendChild(image);
+            card.appendChild(info);
+            restaurantList.appendChild(card);
+        }
+
+        document.addEventListener('DOMContentLoaded', initMap);
+    </script>
+</head>
+<body>
+    <header>
+        <h1>Find Nearby Restaurants</h1>
+    </header>
+    <div class="container">
+        <div class="search-bar">
+            <input type="text" placeholder="Search for restaurants...">
+        </div>
+        <div id="map"></div>
+        <div class="restaurantList">
+
+        </div>
+    </div>
+</body>
+</html>

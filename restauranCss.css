@@ -13,24 +13,32 @@ header {
 
 .container {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: center;
     padding: 1rem;
 }
 
 .search-bar {
     width: 100%;
     margin-bottom: 1rem;
-    align-items: center;
-    padding-left: 30%;
+    text-align: center;
 }
-
 .search-bar  select {
     width: 30%;
     height: 2.5rem;
     padding: 0.5rem;
     font-size: 1.2rem;
     box-shadow: 0 0 1.5px black;
+}
+
+.search-bar label {
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+}
+
+.search-bar select {
+    padding: 0.5rem;
+    font-size: 1rem;
 }
 
 #map {
@@ -40,18 +48,29 @@ header {
     background-color: #ccc;
 }
 
+.restaurantList {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(30%, 1fr));
+    gap: 1rem;
+    width: 100%;
+}
+
 .restaurant-card {
     background-color: #f9f9f9;
     border: 1px solid #ddd;
     border-radius: 5px;
     padding: 1rem;
-    margin-bottom: 1rem;
-    width: 48%;
     cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: all 0.3s;
 }
+
 .restaurant-card:hover{
-    
-    transition: 0.5s;
+    transform: scale(1.005);
+    background-color: darkgrey;
 }
 
 .restaurant-card img {
@@ -63,6 +82,7 @@ header {
 
 .restaurant-info {
     padding: 0.5rem 0;
+    width: 100%;
 }
 
 .restaurant-info h3 {
@@ -70,8 +90,8 @@ header {
 }
 
 @media (max-width: 768px) {
-    .restaurant-card {
-        width: 100%;
+    .restaurantList {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -100,4 +120,8 @@ header {
 
 .locat h1 {
     margin-right: 100px;
+}
+
+.mark div{
+    padding-left: 15px;
 }

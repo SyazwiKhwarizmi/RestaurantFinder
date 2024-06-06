@@ -1,117 +1,208 @@
 let map;
-let service;
-let infowindow;
-let allRestaurants = [];
+        let service;
+        let infowindow;
+        let directionsService;
+        let directionsRenderer;
+        const processedRestaurants = new Set();
+        let currentPosition;
 
-function initMap() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((position) => {
-            const pos = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude
-            };
+        async function initMap() {
+            const loading = document.getElementById('loading');
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    currentPosition = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
 
-            map = new google.maps.Map(document.querySelector('.map'), {
-                center: pos,
-                zoom: 15
-            });
-
-            const request = {
-                location: pos,
-                radius: '10000', // 10km radius
-                type: ['restaurant']
-            };
-
-            service = new google.maps.places.PlacesService(map);
-            service.nearbySearch(request, (results, status) => {
-                if (status === google.maps.places.PlacesServiceStatus.OK) {
-                    allRestaurants = results;
-                    results.forEach((place) => {
-                        createMarker(place);
-                        displayRestaurant(place);
+                    map = new google.maps.Map(document.getElementById('map'), {
+                        center: currentPosition,
+                        zoom: 15
                     });
-                } else {
-                    console.error('PlacesServiceStatus not OK:', status);
+
+                    infowindow = new google.maps.InfoWindow();
+
+                    directionsService = new google.maps.DirectionsService();
+                    directionsRenderer = new google.maps.DirectionsRenderer();
+                    directionsRenderer.setMap(map);
+
+                    service = new google.maps.places.PlacesService(map);
+
+                    searchPlaces();
+
+                    loading.style.display = 'none';
+                }, () => {
+                    handleLocationError(true);
+                    loading.textContent = 'Error: The Geolocation service failed.';
+                });
+            } else {
+                handleLocationError(false);
+                loading.textContent = 'Error: Your browser doesn\'t support geolocation.';
+            }
+        }
+
+        function handleLocationError(browserHasGeolocation) {
+            const loading = document.getElementById('loading');
+            loading.textContent = browserHasGeolocation
+                ? 'Error: The Geolocation service failed.'
+                : 'Error: Your browser doesn\'t support geolocation.';
+        }
+
+        function searchPlaces() {
+            const selectedType = document.getElementById('type').value;
+            const requests = [
+                { location: currentPosition, radius: '10000', type: [selectedType], openNow: true }
+            ];
+
+            requests.forEach(request => {
+                service.nearbySearch(request, (results, status) => {
+                    callback(results, status, request.type[0]);
+                });
+            });
+        }
+
+        function callback(results, status, type) {
+            if (status === google.maps.places.PlacesServiceStatus.OK) {
+                for (let i = 0; i < results.length; i++) {
+                    if (results[i].opening_hours && results[i].opening_hours.open_now && !processedRestaurants.has(results[i].place_id)) {
+                        processedRestaurants.add(results[i].place_id);
+                        service.getDetails({ placeId: results[i].place_id }, (place, status) => {
+                            if (status === google.maps.places.PlacesServiceStatus.OK) {
+                                createMarker(place, type);
+                                displayRestaurant(place, type);
+                            }
+                        });
+                    }
                 }
+            }
+        }
+
+        function createMarker(place, type) {
+            if (!place.geometry || !place.geometry.location) return;
+
+            const marker = new google.maps.Marker({
+                map,
+                position: place.geometry.location,
+                icon: getMarkerIcon(type)
             });
 
-            infowindow = new google.maps.InfoWindow();
-        }, (error) => {
-            console.error('Geolocation error:', error);
-            handleLocationError(true, infowindow, map.getCenter());
+            google.maps.event.addListener(marker, 'click', () => {
+                const reviews = place.reviews ? place.reviews.map(review => `<p>${review.text}</p>`).join('') : 'No reviews available';
+                infowindow.setContent(`
+                    <div>
+                        <strong>${place.name}</strong><br>
+                        ${place.vicinity}<br>
+                        Rating: ${place.rating}/5<br>
+                        ${reviews}
+                    </div>
+                `);
+                infowindow.open(map, marker);
+                calculateAndDisplayRoute(place.geometry.location);
+            });
+        }
+
+        function getMarkerIcon(type) {
+            switch (type) {
+                case 'restaurant':
+                    return 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+                case 'bakery':
+                    return 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png';
+                case 'meal_takeaway':
+                    return 'http://maps.google.com/mapfiles/ms/icons/green-dot.png';
+                case 'cafe':
+                    return 'http://maps.google.com/mapfiles/ms/icons/purple-dot.png';
+                default:
+                    return 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
+            }
+        }
+
+        function calculateAndDisplayRoute(destination) {
+            directionsService.route(
+                {
+                    origin: currentPosition,
+                    destination: destination,
+                    travelMode: google.maps.TravelMode.DRIVING
+                },
+                (response, status) => {
+                    if (status === google.maps.DirectionsStatus.OK) {
+                        directionsRenderer.setDirections(response);
+                    } else {
+                        let errorMessage = 'Directions request failed due to ';
+                        switch (status) {
+                            case google.maps.DirectionsStatus.ZERO_RESULTS:
+                                errorMessage += 'no route could be found between the origin and destination.';
+                                break;
+                            case google.maps.DirectionsStatus.NOT_FOUND:
+                                errorMessage += 'the origin or destination could not be geocoded.';
+                                break;
+                            case google.maps.DirectionsStatus.OVER_QUERY_LIMIT:
+                                errorMessage += 'the application has gone over its request quota.';
+                                break;
+                            case google.maps.DirectionsStatus.REQUEST_DENIED:
+                                errorMessage += 'the application is not allowed to use the directions service.';
+                                break;
+                            case google.maps.DirectionsStatus.INVALID_REQUEST:
+                                errorMessage += 'the provided request is invalid.';
+                                break;
+                            default:
+                                errorMessage += 'an unknown error occurred.';
+                                break;
+                        }
+                        window.alert(errorMessage);
+                    }
+                }
+            );
+        }
+
+        function displayRestaurant(place, type) {
+            const restaurantList = document.querySelector('.restaurantList');
+
+            const card = document.createElement('div');
+            card.classList.add('restaurant-card');
+
+            const image = document.createElement('img');
+            image.src = place.photos ? place.photos[0].getUrl() : 'default-restaurant.jpg';
+            image.alt = place.name;
+
+            const info = document.createElement('div');
+            info.classList.add('restaurant-info');
+
+            const name = document.createElement('h3');
+            name.textContent = place.name;
+
+            const address = document.createElement('p');
+            address.textContent = place.vicinity;
+
+            const rating = document.createElement('p');
+            rating.textContent = `Rating: ${place.rating}/5`;
+
+            const reviews = place.reviews ? place.reviews.map(review => `<p>${review.text}</p>`).join('') : 'No reviews available';
+
+            info.appendChild(name);
+            info.appendChild(address);
+            info.appendChild(rating);
+            info.innerHTML += reviews;
+            card.appendChild(image);
+            card.appendChild(info);
+            restaurantList.appendChild(card);
+
+            card.addEventListener('click', () => {
+                const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${place.geometry.location.lat()},${place.geometry.location.lng()}&travelmode=driving`;
+                window.open(googleMapsUrl, '_blank');
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const loading = document.createElement('div');
+            loading.id = 'loading';
+            loading.textContent = 'Loading map and locating you...';
+            document.body.insertBefore(loading, document.body.firstChild);
+            initMap();
+
+            const typeSelect = document.getElementById('type');
+            typeSelect.addEventListener('change', () => {
+                processedRestaurants.clear();
+                document.querySelector('.restaurantList').innerHTML = ''; // Clear previous results
+                searchPlaces();
+            });
         });
-    } else {
-        console.error('Browser does not support geolocation');
-        handleLocationError(false, infowindow, map.getCenter());
-    }
-}
-
-function handleLocationError(browserHasGeolocation, infoWindow, pos) {
-    if (!pos) {
-        pos = { lat: -34.397, lng: 150.644 }; // Default position
-    }
-    infoWindow.setPosition(pos);
-    infoWindow.setContent(browserHasGeolocation ?
-        'Error: The Geolocation service failed.' :
-        'Error: Your browser doesn\'t support geolocation.');
-    infoWindow.open(map);
-}
-
-function createMarker(place) {
-    const marker = new google.maps.Marker({
-        map: map,
-        position: place.geometry.location
-    });
-
-    google.maps.event.addListener(marker, 'click', function () {
-        infowindow.setContent(place.name);
-        infowindow.open(map, this);
-    });
-}
-
-function displayRestaurant(place) {
-    const restaurantList = document.querySelector('.container');
-    const card = document.createElement('div');
-    card.classList.add('restaurant-card');
-
-    const image = document.createElement('img');
-    image.src = place.photos ? place.photos[0].getUrl() : 'https://via.placeholder.com/200';
-    image.alt = place.name;
-
-    const info = document.createElement('div');
-    info.classList.add('restaurant-info');
-
-    const name = document.createElement('h3');
-    name.textContent = place.name;
-
-    const address = document.createElement('p');
-    address.textContent = place.vicinity;
-
-    const rating = document.createElement('p');
-    rating.textContent = `Rating: ${place.rating}/5`;
-
-    info.appendChild(name);
-    info.appendChild(address);
-    info.appendChild(rating);
-    card.appendChild(image);
-    card.appendChild(info);
-    restaurantList.appendChild(card);
-}
-
-function filterRestaurants() {
-    try {
-        const query = document.querySelector('.search-bar input').value.toLowerCase();
-        const filteredRestaurants = allRestaurants.filter(place => place.name.toLowerCase().includes(query));
-        const restaurantList = document.querySelector('.container');
-        restaurantList.innerHTML = ''; // Clear current results
-        filteredRestaurants.forEach(place => displayRestaurant(place));
-    } catch (error) {
-        console.error('Error filtering restaurants:', error);
-    }
-}
-
-document.addEventListener('DOMContentLoaded', (event) => {
-    console.log('DOM fully loaded and parsed');
-    initMap();
-    document.querySelector('.search-bar input').addEventListener('input', filterRestaurants);
-});

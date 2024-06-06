@@ -26,20 +26,17 @@ header {
 .search-bar  select {
     width: 30%;
     height: 2.5rem;
-    padding: 0.5rem;
-    font-size: 1.2rem;
+    padding: 0.09rem;
+    font-size: 1rem;
     box-shadow: 0 0 1.5px black;
 }
 
 .search-bar label {
-    font-size: 1.2rem;
-    margin-right: 0.5rem;
+    font-size: 1rem;
+    margin-right: 0.3rem;
 }
 
-.search-bar select {
-    padding: 0.5rem;
-    font-size: 1rem;
-}
+
 
 #map {
     width: 100%;

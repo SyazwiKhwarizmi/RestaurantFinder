@@ -226,31 +226,35 @@
         <img src="logo1.png" alt="Yum's Locater Logo" class="logo">
     </div>
     <div class="locat">
-        <h1>Yum's Locater</h1>
+        <h1>Yum's Locator</h1>
     </div>
     </header>
     <div class="container">
+       
+        <div id="map"></div>
+        
+        <div class="fa fa-map-marker" style="font-size:14px;color:red"> Restaurant</div>
+       
+        <div class="fa fa-map-marker" style="font-size:14px;color:blue"> cafe</div>
+       
+        <div class="fa fa-map-marker" style="font-size:14px;color:green"> fastfood</div>
+       
+        <div class="fa fa-map-marker" style="font-size:14px;color:purple"> bakery</div>
+        <br>
+        <br>
+       
         <div class="search-bar">
-            <label for="type">Select Place Type:</label>
-            <select name="type" id="type">
+            
+            <label for="type" style="font-size: 1.5rem;">Select Place Type:</label> 
+
+            <select name="type" id="type" >
                 <option value="restaurant">Restaurant</option>
                 <option value="cafe">Cafe</option>
                 <option value="meal_takeaway">Fast Food</option>
                 <option value="bakery">Bakery</option>
             </select>
-
-
         </div>
-
-        <div class="fa fa-map-marker" style="font-size:14px;color:red"> Restaurant</div>
-        <br>
-        <div class="fa fa-map-marker" style="font-size:14px;color:blue"> cafe</div>
-        <br>
-        <div class="fa fa-map-marker" style="font-size:14px;color:green"> fastfood</div>
-        <br>
-        <div class="fa fa-map-marker" style="font-size:14px;color:purple"> bakery</div>
-        <br>
-        <div id="map"></div>
+       
         <div class="restaurantList"></div>
     </div>
 </body>

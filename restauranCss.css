@@ -21,12 +21,16 @@ header {
 .search-bar {
     width: 100%;
     margin-bottom: 1rem;
+    align-items: center;
+    padding-left: 30%;
 }
 
-.search-bar input {
-    width: 100%;
+.search-bar  select {
+    width: 30%;
+    height: 2.5rem;
     padding: 0.5rem;
-    font-size: 1rem;
+    font-size: 1.2rem;
+    box-shadow: 0 0 1.5px black;
 }
 
 #map {
@@ -44,6 +48,10 @@ header {
     margin-bottom: 1rem;
     width: 48%;
     cursor: pointer;
+}
+.restaurant-card:hover{
+    
+    transition: 0.5s;
 }
 
 .restaurant-card img {
@@ -71,4 +79,25 @@ header {
     text-align: center;
     font-size: 1.5rem;
     margin: 2rem 0;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    background-color: #181819;
+}
+
+.logo img {
+    height: 100px;
+}
+
+.locat {
+    flex: 1;
+    text-align: center;
+}
+
+.locat h1 {
+    margin-right: 100px;
 }

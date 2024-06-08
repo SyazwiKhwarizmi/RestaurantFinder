@@ -22,9 +22,11 @@ header {
     width: 100%;
     margin-bottom: 1rem;
     text-align: center;
+    display: flex;
+    justify-content: center;
 }
-.search-bar  select {
-    width: 30%;
+ #type,#sort {
+    width: 30vw;
     height: 2.5rem;
     padding: 0.09rem;
     font-size: 1rem;
@@ -33,7 +35,7 @@ header {
 
 .search-bar label {
     font-size: 1rem;
-    margin-right: 0.3rem;
+   
 }
 
 
@@ -121,4 +123,13 @@ header {
 
 .mark div{
     padding-left: 15px;
+}
+
+#tdSelect{
+    width: 30vw;
+}
+
+#labelSelect{
+    width:10vw;
+    text-align: right;
 }
